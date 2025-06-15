@@ -8,24 +8,22 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Properties;
 import java.util.function.Predicate;
-
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Lazy;
+import org.springframework.context.annotation.Profile;
 import org.springframework.context.annotation.Scope;
 import org.springframework.core.env.Environment;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.ResourceLoader;
 import org.thymeleaf.spring6.SpringTemplateEngine;
-
-import lombok.Getter;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-
 import stirling.software.common.model.ApplicationProperties;
 
 @Lazy
@@ -146,10 +144,24 @@ public class AppConfig {
         }
     }
 
-    @ConditionalOnMissingClass("stirling.software.SPDF.config.security.SecurityConfiguration")
     @Bean(name = "activeSecurity")
+    public boolean activeSecurity() {
+        String disableAdditionalFeatures = env.getProperty("DISABLE_ADDITIONAL_FEATURES");
+
+        if (disableAdditionalFeatures != null) {
+            // DISABLE_ADDITIONAL_FEATURES=true means security OFF, so return false
+            // DISABLE_ADDITIONAL_FEATURES=false means security ON, so return true
+            return !Boolean.parseBoolean(disableAdditionalFeatures);
+        }
+
+        return env.getProperty("DOCKER_ENABLE_SECURITY", Boolean.class, true);
+    }
+
+    @Bean(name = "missingActiveSecurity")
+    @ConditionalOnMissingClass(
+            "stirling.software.proprietary.security.configuration.SecurityConfiguration")
     public boolean missingActiveSecurity() {
-        return false;
+        return true;
     }
 
     @Bean(name = "directoryFilter")
@@ -236,9 +248,35 @@ public class AppConfig {
         return applicationProperties.getSystem().getDatasource();
     }
 
+
+    @Bean(name = "runningProOrHigher")
+    @Profile("default")
+    public boolean runningProOrHigher() {
+    	return false;
+    }
+
+    @Bean(name = "runningEE")
+    @Profile("default")
+    public boolean runningEnterprise() {
+    	return false;
+    }
+
+    @Bean(name = "GoogleDriveEnabled")
+    @Profile("default")
+    public boolean googleDriveEnabled() {
+        return false;
+    }
+
+    @Bean(name = "license")
+    @Profile("default")
+    public String licenseType() {
+        return "NORMAL";
+    }
+
+
     @Bean(name = "disablePixel")
     public boolean disablePixel() {
-        return Boolean.getBoolean(env.getProperty("DISABLE_PIXEL"));
+    	return Boolean.parseBoolean(env.getProperty("DISABLE_PIXEL", "false"));
     }
 
     @Bean(name = "machineType")
